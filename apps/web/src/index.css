@@ -92,10 +92,17 @@ h2 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 
 
 .card__coop { font-size: 12px; font-weight: 600; color: var(--accent, #5eead4); }
 
-.shots { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.shots {
+  display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px;
+  scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+}
+.shots::-webkit-scrollbar { height: 6px; }
+.shots::-webkit-scrollbar-track { background: transparent; }
+.shots::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+.shots::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 .shots a { flex: 0 0 auto; }
 .shots img {
-  height: 52px; width: auto; border-radius: var(--r-sm);
+  height: 56px; width: auto; border-radius: var(--r-sm);
   object-fit: cover; display: block; opacity: .85; transition: opacity .15s;
 }
 .shots img:hover { opacity: 1; }
