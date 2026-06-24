@@ -10,18 +10,28 @@ export class GamesService {
     const uid = BigInt(userId);
     const games = await this.prisma.game.findMany({
       where: { status: { not: "REMOVED" } },
-      include: { userStates: { where: { userId: uid } } },
+      include: { userStates: true },
       orderBy: [{ releaseDate: "asc" }, { createdAt: "desc" }],
     });
 
     return games.map((game) => {
-      const mine = game.userStates[0];
+      const mine = game.userStates.find((state) => state.userId === uid);
+      const ratings = game.userStates
+        .map((state) => state.rating)
+        .filter((rating): rating is number => rating !== null);
+      const avgRating =
+        ratings.length > 0
+          ? Math.round((ratings.reduce((sum, r) => sum + r, 0) / ratings.length) * 2) / 2
+          : null;
+
       const { userStates, suggestedById, ...rest } = game;
       return {
         ...rest,
         suggestedById: suggestedById?.toString() ?? null,
         played: mine?.played ?? false,
         myRating: mine?.rating ?? null,
+        avgRating,
+        ratingCount: ratings.length,
       };
     });
   }
@@ -49,7 +59,7 @@ export class GamesService {
     return { ok: true };
   }
 
-  async setRating(userId: string, gameId: string, rating: number) {
+  async setRating(userId: string, gameId: string, rating: number | null) {
     const uid = BigInt(userId);
     await this.prisma.userGame.upsert({
       where: { userId_gameId: { userId: uid, gameId } },

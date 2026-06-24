@@ -123,16 +123,23 @@ export function DashboardPage() {
                     ))}
                   </div>
                 )}
-                <div className="rating">
-                  {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-                    <button
-                      key={n}
-                      className={game.myRating && n <= game.myRating ? "is-filled" : ""}
-                      onClick={() => api.setGameRating(game.id, n).then(reload)}
-                    >
-                      {n}
-                    </button>
-                  ))}
+                <div className="rating-row">
+                  <div className="rating">
+                    {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                      <button
+                        key={n}
+                        className={game.myRating && n <= game.myRating ? "is-filled" : ""}
+                        onClick={() => api.setGameRating(game.id, game.myRating === n ? null : n).then(reload)}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                  {game.ratingCount > 0 && (
+                    <span className="rating__avg" title={`Average of ${game.ratingCount} rating${game.ratingCount === 1 ? "" : "s"}`}>
+                      ★ {game.avgRating} <small>({game.ratingCount})</small>
+                    </span>
+                  )}
                 </div>
                 <div className="actions">
                   <button

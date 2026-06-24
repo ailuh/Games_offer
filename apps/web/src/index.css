@@ -110,6 +110,9 @@ h2 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 
 .card.is-done .card__cover img { filter: saturate(.55) brightness(.78); }
 .card.is-done { border-color: var(--success-soft); }
 
+.rating-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rating__avg { font: 700 13px var(--font-num); color: var(--accent, #fbbf24); white-space: nowrap; }
+.rating__avg small { color: var(--text-muted); font-weight: 500; }
 .rating { display: flex; gap: 3px; flex-wrap: wrap; }
 .rating button {
   width: 22px; height: 26px; padding: 0; border: 1px solid var(--border); background: var(--surface-2);

@@ -1,4 +1,4 @@
-import { IsArray, IsBoolean, IsInt, IsOptional, IsString, Max, Min } from "class-validator";
+import { IsArray, IsBoolean, IsInt, IsOptional, IsString, Max, Min, ValidateIf } from "class-validator";
 import { RATING_MAX, RATING_MIN } from "@app/shared";
 
 export class CreateGameDto {
@@ -34,8 +34,10 @@ export class SetPlayedDto {
 }
 
 export class SetRatingDto {
+  // null clears the rating (toggle off); a number must be within range.
+  @ValidateIf((dto: SetRatingDto) => dto.rating !== null)
   @IsInt()
   @Min(RATING_MIN)
   @Max(RATING_MAX)
-  rating!: number;
+  rating!: number | null;
 }

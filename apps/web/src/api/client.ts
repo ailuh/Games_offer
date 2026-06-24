@@ -29,6 +29,8 @@ export interface Game {
   playersMax: number | null;
   played: boolean;
   myRating: number | null;
+  avgRating: number | null;
+  ratingCount: number;
 }
 
 export interface Video {
@@ -47,7 +49,7 @@ export const api = {
   addGame: (text: string) => request<{ id: string; title: string }>("/games/ingest", { method: "POST", body: JSON.stringify({ text }) }),
   setGamePlayed: (id: string, played: boolean) =>
     request(`/games/${id}/played`, { method: "PATCH", body: JSON.stringify({ played }) }),
-  setGameRating: (id: string, rating: number) =>
+  setGameRating: (id: string, rating: number | null) =>
     request(`/games/${id}/rating`, { method: "PATCH", body: JSON.stringify({ rating }) }),
   removeGame: (id: string) => request(`/games/${id}`, { method: "DELETE" }),
   suggestGame: (id: string) => request<{ sent: number }>(`/games/${id}/suggest`, { method: "POST" }),
