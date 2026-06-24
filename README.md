@@ -54,6 +54,23 @@ and renews TLS automatically. Keep Postgres unpublished, keep `.env` out of git
 (`chmod 600 .env`), and set `OPENAI_DAILY_TOKEN_CAP` (the provider's own limit only
 alerts, it does not stop spend).
 
+### Behind an existing reverse proxy
+
+If the host already runs a reverse proxy on 80/443 (e.g. nginx for other sites),
+skip Caddy and let that proxy handle TLS. Bring up the app on localhost ports and
+forward to them:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.behind-proxy.yml \
+  up -d --build postgres api web
+docker compose -f docker-compose.yml -f docker-compose.behind-proxy.yml \
+  exec api pnpm prisma migrate deploy
+```
+
+Then add a vhost on the host proxy pointing at `127.0.0.1:8090` (web) and
+`127.0.0.1:3090` (api) — see [`deploy/nginx-site.conf.example`](./deploy/nginx-site.conf.example),
+then `certbot --nginx -d your-domain` for TLS.
+
 ## Security
 
 The Telegram Login Widget's HMAC and `auth_date` are verified server-side and the id

@@ -1,0 +1,17 @@
+# Overlay for deploying behind an existing reverse proxy (e.g. a host nginx that
+# already owns ports 80/443 for other sites). It publishes web and api on
+# localhost so the host proxy can forward to them; the bundled caddy service is
+# simply left out of the `up` command. TLS is handled by the host proxy, not Caddy.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.behind-proxy.yml \
+#     up -d --build postgres api web
+#
+# Then point the host proxy at 127.0.0.1:8090 (web) and 127.0.0.1:3090 (api);
+# see deploy/nginx-site.conf.example.
+services:
+  web:
+    ports:
+      - "127.0.0.1:8090:80"
+  api:
+    ports:
+      - "127.0.0.1:3090:3000"
