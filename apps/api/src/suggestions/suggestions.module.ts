@@ -1,6 +1,6 @@
 import { Injectable, Module, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { formatCoop } from "@app/shared";
+import { formatCoop, formatPlayers } from "@app/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { TelegramModule, TelegramService } from "../telegram/telegram.module";
 import type { Env } from "../config/env.validation";
@@ -21,8 +21,10 @@ export class SuggestionsService {
 
     const who = await this.displayName(byUserId);
     const coop = formatCoop(game);
+    const players = formatPlayers(game);
     const lines = [
       `🎮 ${who} suggests for tonight: "${game.title}"`,
+      players ? `👥 ${players}` : null,
       coop ? `🤝 ${coop}` : null,
       game.steamUrl,
     ].filter((line): line is string => Boolean(line));

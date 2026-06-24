@@ -88,6 +88,7 @@ h2 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 
 }
 .badge--demo { background: var(--warning); color: #1a1205; }
 .badge--coop { background: var(--accent, #14b8a6); color: #03110d; }
+.badge--players { background: rgba(11, 11, 15, .72); color: var(--text); }
 
 .card__coop { font-size: 12px; font-weight: 600; color: var(--accent, #5eead4); }
 

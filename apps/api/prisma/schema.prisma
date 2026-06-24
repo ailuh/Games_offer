@@ -44,8 +44,8 @@ model Game {
   coopOnline     Boolean    @default(false)
   coopLocal      Boolean    @default(false)
   coopSplitscreen Boolean   @default(false)
-  coopOnlineMax  Int?
-  coopOfflineMax Int?
+  playersMin     Int?
+  playersMax     Int?
   status         GameStatus @default(BACKLOG)
   sourcePostId   String?
   suggestedById  BigInt?

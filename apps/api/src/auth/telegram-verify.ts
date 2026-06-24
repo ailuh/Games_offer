@@ -24,7 +24,12 @@ export function verifyTelegramLogin(
 ): boolean {
   const { hash, ...fields } = data;
 
+  // Only the fields Telegram actually sent are part of the signature. DTO class
+  // fields can materialise as own properties with value `undefined` (e.g. a user
+  // with no photo_url); those must be skipped, or the data-check-string would
+  // include "photo_url=undefined" and never match Telegram's hash.
   const dataCheckString = Object.keys(fields)
+    .filter((key) => (fields as Record<string, unknown>)[key] !== undefined)
     .sort()
     .map((key) => `${key}=${(fields as Record<string, unknown>)[key]}`)
     .join("\n");

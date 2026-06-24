@@ -30,12 +30,10 @@ export class GameIngestService {
     const title = parsed?.title ?? details?.name ?? null;
     if (!title) return null;
 
-    const coopOnline = details?.coopOnline ?? false;
-    const coopLocal = details?.coopLocal ?? false;
-    const coopPlayersMax =
-      (coopOnline || coopLocal) && details?.aboutText
-        ? await this.extractCoopPlayersSafely(details.aboutText)
-        : null;
+    const players =
+      details?.multiplayer && details.aboutText
+        ? await this.extractPlayersSafely(details.aboutText)
+        : { playersMin: null, playersMax: null };
     const releaseDateRaw = parsed?.releaseDateRaw ?? details?.releaseDateRaw ?? null;
 
     const game = await this.prisma.game.create({
@@ -51,11 +49,11 @@ export class GameIngestService {
         steamUrl: parsed?.steamUrl ?? details?.steamUrl ?? null,
         headerImage: details?.headerImage ?? null,
         screenshots: details?.screenshots ?? [],
-        coopOnline,
-        coopLocal,
+        coopOnline: details?.coopOnline ?? false,
+        coopLocal: details?.coopLocal ?? false,
         coopSplitscreen: details?.coopSplitscreen ?? false,
-        coopOnlineMax: coopOnline ? coopPlayersMax : null,
-        coopOfflineMax: coopLocal && !coopOnline ? coopPlayersMax : null,
+        playersMin: players.playersMin,
+        playersMax: players.playersMax,
         suggestedById: BigInt(suggestedById),
       },
     });
@@ -71,12 +69,12 @@ export class GameIngestService {
     }
   }
 
-  private async extractCoopPlayersSafely(aboutText: string): Promise<number | null> {
+  private async extractPlayersSafely(aboutText: string): Promise<{ playersMin: number | null; playersMax: number | null }> {
     try {
-      return await this.ai.extractCoopPlayers(aboutText);
+      return await this.ai.extractPlayerCount(aboutText);
     } catch (error) {
-      this.logger.warn(`Co-op player extraction failed: ${String(error)}`);
-      return null;
+      this.logger.warn(`Player-count extraction failed: ${String(error)}`);
+      return { playersMin: null, playersMax: null };
     }
   }
 }

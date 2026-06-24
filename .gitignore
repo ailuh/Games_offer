@@ -9,9 +9,8 @@ build/
 apps/web/dist/
 apps/api/dist/
 
-# env & secrets
-.env
-.env.*
+# env & secrets — ignore every .env variant (incl. stray "copy" files), keep the example
+.env*
 !.env.example
 
 # local planning docs and editor/agent state (kept out of the public repo)
@@ -33,3 +32,6 @@ docker-compose.override.yml
 npm-debug.log*
 .DS_Store
 coverage/
+
+# scratch / temp scripts
+._*

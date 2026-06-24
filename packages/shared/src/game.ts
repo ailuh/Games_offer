@@ -17,35 +17,50 @@ export const GamePostSchema = z.object({
 export type GamePost = z.infer<typeof GamePostSchema>;
 
 /**
- * Co-op capabilities of a game. Boolean flags come from Steam store categories;
- * the max player count is read by the model from the Steam store description when
- * it states one, and is null otherwise.
+ * Co-op capabilities of a game, from Steam store categories. The player counts
+ * live separately in PlayersInfo because they apply to any multiplayer mode, not
+ * only co-op.
  */
 export interface CoopInfo {
   coopOnline: boolean;
   coopLocal: boolean;
   coopSplitscreen: boolean;
-  coopOnlineMax: number | null;
-  coopOfflineMax: number | null;
 }
 
 /**
- * Human-readable one-line co-op summary, e.g. "Co-op: Online 2–4 · Couch ·
- * Split-screen · Campaign". Returns null when the game has no known co-op.
+ * Min/max number of players that can play together (co-op or competitive), read
+ * by the model from the Steam store description when it states one. Null when not
+ * stated or the game is single-player.
+ */
+export interface PlayersInfo {
+  playersMin: number | null;
+  playersMax: number | null;
+}
+
+/**
+ * Human-readable co-op modes summary, e.g. "Co-op: Online · Couch · Split-screen".
+ * Returns null when the game has no known co-op.
  */
 export function formatCoop(info: Partial<CoopInfo>): string | null {
   const parts: string[] = [];
-  if (info.coopOnline || info.coopOnlineMax) {
-    parts.push(info.coopOnlineMax ? `Online ${formatPlayers(info.coopOnlineMax)}` : "Online");
-  }
-  if (info.coopLocal || info.coopOfflineMax) {
-    parts.push(info.coopOfflineMax ? `Couch ${formatPlayers(info.coopOfflineMax)}` : "Couch");
-  }
+  if (info.coopOnline) parts.push("Online");
+  if (info.coopLocal) parts.push("Couch");
   if (info.coopSplitscreen) parts.push("Split-screen");
   return parts.length > 0 ? `Co-op: ${parts.join(" · ")}` : null;
 }
 
-const formatPlayers = (max: number): string => (max > 1 ? `up to ${max}` : `${max}`);
+/**
+ * Human-readable player-count summary, e.g. "2–10 players", "up to 4 players".
+ * Returns null when no count is known.
+ */
+export function formatPlayers(info: Partial<PlayersInfo>): string | null {
+  const min = info.playersMin ?? null;
+  const max = info.playersMax ?? null;
+  if (min && max && min !== max) return `${min}–${max} players`;
+  if (max && max > 1) return `up to ${max} players`;
+  if (max) return `${max} player`;
+  return null;
+}
 
 export const GAME_STATUS = ["BACKLOG", "RELEASED", "REMOVED"] as const;
 export type GameStatus = (typeof GAME_STATUS)[number];

@@ -25,8 +25,8 @@ export interface Game {
   coopOnline: boolean;
   coopLocal: boolean;
   coopSplitscreen: boolean;
-  coopOnlineMax: number | null;
-  coopOfflineMax: number | null;
+  playersMin: number | null;
+  playersMax: number | null;
   played: boolean;
   myRating: number | null;
 }

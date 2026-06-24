@@ -12,6 +12,7 @@ export interface SteamDetails {
   coopOnline: boolean;
   coopLocal: boolean;
   coopSplitscreen: boolean;
+  multiplayer: boolean;
   aboutText: string | null;
 }
 
@@ -37,6 +38,7 @@ function parseCoopCategories(categories: Array<{ description?: string }> | undef
   coopOnline: boolean;
   coopLocal: boolean;
   coopSplitscreen: boolean;
+  multiplayer: boolean;
 } {
   const labels = (categories ?? []).map((c) => (c.description ?? "").toLowerCase());
   const has = (needle: string) => labels.some((l) => l.includes(needle));
@@ -44,7 +46,8 @@ function parseCoopCategories(categories: Array<{ description?: string }> | undef
   const coopOnline = has("online co-op");
   const coopLocal = coopSplitscreen || has("lan co-op") || has("local co-op") || has("remote play together");
   const coopOnlineEffective = coopOnline || (has("co-op") && !coopLocal);
-  return { coopOnline: coopOnlineEffective, coopLocal, coopSplitscreen };
+  const multiplayer = has("multi-player") || has("co-op") || has("pvp") || coopLocal;
+  return { coopOnline: coopOnlineEffective, coopLocal, coopSplitscreen, multiplayer };
 }
 
 /**

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { formatCoop } from "@app/shared";
+import { formatCoop, formatPlayers } from "@app/shared";
 import { api, Game, Video } from "../api/client";
 
 export function DashboardPage() {
@@ -92,6 +92,7 @@ export function DashboardPage() {
           {games.length === 0 && <div className="empty">No games yet — add one above or forward a post to the bot.</div>}
           {games.map((game) => {
             const coop = formatCoop(game);
+            const players = formatPlayers(game);
             return (
             <article className={`card${game.played ? " is-done" : ""}`} key={game.id}>
               <div className="card__cover">
@@ -102,6 +103,7 @@ export function DashboardPage() {
                 )}
                 <div className="badges">
                   {game.hasDemo && <span className="badge badge--demo">Demo</span>}
+                  {players && <span className="badge badge--players">👥 {players}</span>}
                   {coop && <span className="badge badge--coop">🤝 Co-op</span>}
                   {game.releaseDateRaw && <span className="badge">{game.releaseDateRaw}</span>}
                 </div>
@@ -109,7 +111,9 @@ export function DashboardPage() {
               <div className="card__body">
                 <div className="card__title">{game.title}</div>
                 {game.genres.length > 0 && <div className="card__meta">{game.genres.join(" · ")}</div>}
-                {coop && <div className="card__coop">{coop}</div>}
+                {(players || coop) && (
+                  <div className="card__coop">{[players, coop].filter(Boolean).join(" · ")}</div>
+                )}
                 {game.screenshots.length > 0 && (
                   <div className="shots">
                     {game.screenshots.slice(0, 6).map((src) => (
