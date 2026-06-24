@@ -1,3 +1,11 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# pnpm 11 denies dependency build scripts by default and errors on any ignored
+# build (strictDepBuilds=true). Approve the ones we need — Prisma's postinstall
+# fetches its query engine.
+allowBuilds:
+  "@prisma/client": true
+  "@prisma/engines": true
+  prisma: true
