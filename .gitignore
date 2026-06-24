@@ -1,0 +1,35 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+build/
+*.tsbuildinfo
+apps/web/dist/
+apps/api/dist/
+
+# env & secrets
+.env
+.env.*
+!.env.example
+
+# local planning docs and editor/agent state (kept out of the public repo)
+docs/
+.claude/
+**/CLAUDE.md
+**/CLAUDE.local.md
+.idea/
+.vscode/
+
+# prisma
+apps/api/prisma/*.db
+
+# local-only docker overrides (e.g. exposing Postgres for host dev)
+docker-compose.override.yml
+
+# logs & misc
+*.log
+npm-debug.log*
+.DS_Store
+coverage/

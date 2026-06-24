@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        BigInt   @id
+  username  String?
+  firstName String?
+  photoUrl  String?
+  isAllowed Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  games          UserGame[]
+  videos         UserVideo[]
+  suggestedGames Game[]          @relation("GameSuggestedBy")
+  suggestedVideos Video[]        @relation("VideoSuggestedBy")
+  queuedItems    WatchQueueItem[]
+}
+
+enum GameStatus {
+  BACKLOG
+  RELEASED
+  REMOVED
+}
+
+model Game {
+  id             String     @id @default(cuid())
+  title          String
+  description    String?
+  genres         String[]
+  releaseDate    DateTime?
+  releaseDateRaw String?
+  comingSoon     Boolean    @default(true)
+  hasDemo        Boolean    @default(false)
+  steamAppId     Int?
+  steamUrl       String?
+  headerImage    String?
+  screenshots    String[]   @default([])
+  coopOnline     Boolean    @default(false)
+  coopLocal      Boolean    @default(false)
+  coopSplitscreen Boolean   @default(false)
+  coopOnlineMax  Int?
+  coopOfflineMax Int?
+  status         GameStatus @default(BACKLOG)
+  sourcePostId   String?
+  suggestedById  BigInt?
+  suggestedBy    User?      @relation("GameSuggestedBy", fields: [suggestedById], references: [id])
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  userStates UserGame[]
+  notices    ReleaseNotice[]
+}
+
+model UserGame {
+  userId    BigInt
+  gameId    String
+  played    Boolean  @default(false)
+  rating    Int?
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@id([userId, gameId])
+}
+
+model Video {
+  id            String   @id @default(cuid())
+  youtubeId     String   @unique
+  url           String
+  title         String?
+  channel       String?
+  suggestedById BigInt?
+  suggestedBy   User?    @relation("VideoSuggestedBy", fields: [suggestedById], references: [id])
+  createdAt     DateTime @default(now())
+
+  userStates UserVideo[]
+  queueItems WatchQueueItem[]
+}
+
+model UserVideo {
+  userId    BigInt
+  videoId   String
+  watched   Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@id([userId, videoId])
+}
+
+model WatchQueueItem {
+  id        String    @id @default(cuid())
+  videoId   String
+  position  Int
+  addedById BigInt?
+  playedAt  DateTime?
+  createdAt DateTime  @default(now())
+
+  video   Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  addedBy User? @relation(fields: [addedById], references: [id])
+}
+
+enum NoticeKind {
+  RELEASE_TODAY
+  SHIFTED
+}
+
+model ReleaseNotice {
+  gameId   String
+  noticeOn DateTime
+  kind     NoticeKind
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@id([gameId, noticeOn, kind])
+}
