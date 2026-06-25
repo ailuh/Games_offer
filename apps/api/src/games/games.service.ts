@@ -1,10 +1,15 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
+import { normalizeReview, REVIEW_MAX_LINES } from "@app/shared";
 import { PrismaService } from "../prisma/prisma.service";
+import { LibraryGateway } from "../library/library.module";
 import { CreateGameDto } from "./dto";
 
 @Injectable()
 export class GamesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly library: LibraryGateway,
+  ) {}
 
   async list(userId: string) {
     const uid = BigInt(userId);
@@ -50,7 +55,7 @@ export class GamesService {
   }
 
   async create(userId: string, dto: CreateGameDto) {
-    return this.prisma.game.create({
+    const game = await this.prisma.game.create({
       data: {
         title: dto.title,
         description: dto.description ?? null,
@@ -60,6 +65,8 @@ export class GamesService {
         suggestedById: BigInt(userId),
       },
     });
+    this.library.notifyChanged();
+    return game;
   }
 
   async setPlayed(userId: string, gameId: string, played: boolean) {
@@ -69,6 +76,7 @@ export class GamesService {
       create: { userId: uid, gameId, played },
       update: { played },
     });
+    this.library.notifyChanged();
     return { ok: true };
   }
 
@@ -79,22 +87,28 @@ export class GamesService {
       create: { userId: uid, gameId, rating },
       update: { rating },
     });
+    this.library.notifyChanged();
     return { ok: true };
   }
 
   async setReview(userId: string, gameId: string, review: string | null) {
     const uid = BigInt(userId);
-    const trimmed = review?.trim() ? review.trim() : null;
+    const cleaned = review?.trim() ? normalizeReview(review) : null;
+    if (cleaned && cleaned.split("\n").length > REVIEW_MAX_LINES) {
+      throw new BadRequestException(`Review has too many lines (max ${REVIEW_MAX_LINES})`);
+    }
     await this.prisma.userGame.upsert({
       where: { userId_gameId: { userId: uid, gameId } },
-      create: { userId: uid, gameId, review: trimmed },
-      update: { review: trimmed },
+      create: { userId: uid, gameId, review: cleaned },
+      update: { review: cleaned },
     });
+    this.library.notifyChanged();
     return { ok: true };
   }
 
   async remove(gameId: string) {
     await this.prisma.game.update({ where: { id: gameId }, data: { status: "REMOVED" } });
+    this.library.notifyChanged();
     return { ok: true };
   }
 }

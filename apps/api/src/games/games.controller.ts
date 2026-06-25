@@ -4,7 +4,7 @@ import { CurrentUserId } from "../auth/current-user.decorator";
 import { GamesService } from "./games.service";
 import { SuggestionsService } from "../suggestions/suggestions.module";
 import { GameIngestService } from "./ingest.module";
-import { CreateGameDto, IngestGameDto, SetPlayedDto, SetRatingDto, SetReviewDto } from "./dto";
+import { CreateGameDto, IngestGameDto, SetPlayedDto, SetRatingDto, SetReviewDto, SuggestDto } from "./dto";
 
 @Controller("games")
 @UseGuards(SessionGuard)
@@ -33,8 +33,8 @@ export class GamesController {
   }
 
   @Post(":id/suggest")
-  suggest(@CurrentUserId() userId: string, @Param("id") id: string) {
-    return this.suggestions.suggestGame(id, userId);
+  suggest(@CurrentUserId() userId: string, @Param("id") id: string, @Body() dto: SuggestDto) {
+    return this.suggestions.suggestGame(id, userId, dto.recipientIds);
   }
 
   @Patch(":id/played")

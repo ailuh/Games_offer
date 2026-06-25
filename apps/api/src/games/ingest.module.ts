@@ -2,6 +2,7 @@ import { Injectable, Logger, Module } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { AiModule, AiService } from "../ai/ai.module";
 import { SteamModule, SteamService, parseSteamAppId } from "../steam/steam.module";
+import { LibraryModule, LibraryGateway } from "../library/library.module";
 import { parseReleaseDate } from "./release-date";
 
 /**
@@ -17,6 +18,7 @@ export class GameIngestService {
     private readonly prisma: PrismaService,
     private readonly ai: AiService,
     private readonly steam: SteamService,
+    private readonly library: LibraryGateway,
   ) {}
 
   async ingest(text: string, suggestedById: string | number): Promise<{ id: string; title: string } | null> {
@@ -59,6 +61,7 @@ export class GameIngestService {
         suggestedById: BigInt(suggestedById),
       },
     });
+    this.library.notifyChanged();
     return { id: game.id, title: game.title };
   }
 
@@ -82,7 +85,7 @@ export class GameIngestService {
 }
 
 @Module({
-  imports: [AiModule, SteamModule],
+  imports: [AiModule, SteamModule, LibraryModule],
   providers: [GameIngestService],
   exports: [GameIngestService],
 })

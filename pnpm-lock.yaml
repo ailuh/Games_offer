@@ -58,6 +58,9 @@ importers:
       openai:
         specifier: 6.44.0
         version: 6.44.0(ws@8.21.0)(zod@4.4.3)
+      prisma:
+        specifier: 6.19.3
+        version: 6.19.3(typescript@6.0.3)
       reflect-metadata:
         specifier: 0.2.2
         version: 0.2.2
@@ -86,9 +89,6 @@ importers:
       '@types/node':
         specifier: 26.0.0
         version: 26.0.0
-      prisma:
-        specifier: 6.19.3
-        version: 6.19.3(typescript@6.0.3)
       typescript:
         specifier: 6.0.3
         version: 6.0.3

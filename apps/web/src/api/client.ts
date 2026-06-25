@@ -56,6 +56,11 @@ export interface Video {
   watched: boolean;
 }
 
+export interface Recipient {
+  id: string;
+  name: string;
+}
+
 export const api = {
   me: () => request<{ id: string }>("/auth/me"),
   logout: () => request<{ ok: boolean }>("/auth/logout", { method: "POST" }),
@@ -68,12 +73,15 @@ export const api = {
   setGameReview: (id: string, review: string | null) =>
     request(`/games/${id}/review`, { method: "PATCH", body: JSON.stringify({ review }) }),
   removeGame: (id: string) => request(`/games/${id}`, { method: "DELETE" }),
-  suggestGame: (id: string) => request<{ sent: number }>(`/games/${id}/suggest`, { method: "POST" }),
+  listRecipients: () => request<Recipient[]>("/users/recipients"),
+  suggestGame: (id: string, recipientIds?: string[]) =>
+    request<{ sent: number }>(`/games/${id}/suggest`, { method: "POST", body: JSON.stringify({ recipientIds }) }),
   listVideos: () => request<Video[]>("/videos"),
   addVideo: (url: string) => request("/videos", { method: "POST", body: JSON.stringify({ url }) }),
   setVideoWatched: (id: string, watched: boolean) =>
     request(`/videos/${id}/watched`, { method: "PATCH", body: JSON.stringify({ watched }) }),
-  suggestVideo: (id: string) => request<{ sent: number }>(`/videos/${id}/suggest`, { method: "POST" }),
+  suggestVideo: (id: string, recipientIds?: string[]) =>
+    request<{ sent: number }>(`/videos/${id}/suggest`, { method: "POST", body: JSON.stringify({ recipientIds }) }),
   removeVideo: (id: string) => request(`/videos/${id}`, { method: "DELETE" }),
   watchNow: (videoId: string) => request<{ ok: boolean }>("/watch/queue", { method: "POST", body: JSON.stringify({ videoId }) }),
 };

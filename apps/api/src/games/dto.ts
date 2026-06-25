@@ -41,6 +41,13 @@ export class SetRatingDto {
   rating!: number | null;
 }
 
+export class SuggestDto {
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  recipientIds?: string[];
+}
+
 export class SetReviewDto {
   @ValidateIf((dto: SetReviewDto) => dto.review !== null)
   @IsString()

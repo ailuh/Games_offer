@@ -22,6 +22,15 @@ FROM node:22-alpine AS runtime
 RUN corepack enable
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=build /app /app
+# Copy node_modules as its own layer: it only changes when dependencies change,
+# so code-only deploys reuse the cached layer instead of re-exporting ~hundreds
+# of MB of small files every time. The app code (dist) is a tiny separate layer.
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/package.json /app/pnpm-workspace.yaml /app/pnpm-lock.yaml ./
+COPY --from=build /app/packages/shared ./packages/shared
+COPY --from=build /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=build /app/apps/api/package.json ./apps/api/package.json
+COPY --from=build /app/apps/api/prisma ./apps/api/prisma
+COPY --from=build /app/apps/api/dist ./apps/api/dist
 WORKDIR /app/apps/api
 CMD ["node", "dist/main.js"]

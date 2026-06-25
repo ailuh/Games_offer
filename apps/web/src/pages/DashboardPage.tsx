@@ -1,27 +1,55 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { formatCoop, formatPlayers, formatPriceRub, REVIEW_MAX_LENGTH } from "@app/shared";
-import { api, Game, Video } from "../api/client";
+import { io } from "socket.io-client";
+import { formatCoop, formatPlayers, formatPriceRub, REVIEW_MAX_LENGTH, REVIEW_MAX_LINES } from "@app/shared";
+import { api, Game, Recipient, Video } from "../api/client";
+import { Modal } from "../components/Modal";
+
+const PAGE_SIZE = 8;
+
+type RemoveTarget = { kind: "game" | "video"; id: string; title: string };
+type SuggestTarget = { kind: "game" | "video"; id: string; title: string };
 
 export function DashboardPage() {
   const [games, setGames] = useState<Game[]>([]);
   const [videos, setVideos] = useState<Video[]>([]);
+  const [recipients, setRecipients] = useState<Recipient[]>([]);
   const [meId, setMeId] = useState<string | null>(null);
   const [newUrl, setNewUrl] = useState("");
   const [newGame, setNewGame] = useState("");
   const [addingGame, setAddingGame] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [visibleGames, setVisibleGames] = useState(PAGE_SIZE);
+  const [visibleVideos, setVisibleVideos] = useState(PAGE_SIZE);
+  const [removeTarget, setRemoveTarget] = useState<RemoveTarget | null>(null);
+  const [suggestTarget, setSuggestTarget] = useState<SuggestTarget | null>(null);
   const navigate = useNavigate();
 
-  const reload = () => {
+  const reload = useCallback(() => {
     api.listGames().then(setGames).catch(() => undefined);
     api.listVideos().then(setVideos).catch(() => undefined);
-  };
-
-  useEffect(reload, []);
-  useEffect(() => {
-    api.me().then((u) => setMeId(u.id)).catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    reload();
+    api.me().then((u) => setMeId(u.id)).catch(() => undefined);
+    api.listRecipients().then(setRecipients).catch(() => undefined);
+  }, [reload]);
+
+  // Live updates: the API emits "library:changed" on every add/edit/remove, so
+  // every open dashboard refreshes itself. Debounced to coalesce bursts.
+  useEffect(() => {
+    const socket = io({ withCredentials: true });
+    let timer: number | undefined;
+    socket.on("library:changed", () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(reload, 300);
+    });
+    return () => {
+      window.clearTimeout(timer);
+      socket.disconnect();
+    };
+  }, [reload]);
 
   const flash = (message: string) => {
     setToast(message);
@@ -50,22 +78,26 @@ export function DashboardPage() {
     }
   };
 
-  const suggestGame = async (id: string) => {
+  const doSuggest = async (recipientIds: string[]) => {
+    if (!suggestTarget) return;
+    const { kind, id } = suggestTarget;
+    setSuggestTarget(null);
     try {
-      const { sent } = await api.suggestGame(id);
-      flash(`Suggested to ${sent} ${sent === 1 ? "person" : "people"} 🎮`);
+      const { sent } =
+        kind === "game" ? await api.suggestGame(id, recipientIds) : await api.suggestVideo(id, recipientIds);
+      flash(`Suggested to ${sent} ${sent === 1 ? "person" : "people"} ${kind === "game" ? "🎮" : "📺"}`);
     } catch (err) {
       flash(err instanceof Error ? err.message : "Couldn't suggest");
     }
   };
 
-  const suggestVideo = async (id: string) => {
-    try {
-      const { sent } = await api.suggestVideo(id);
-      flash(`Suggested to ${sent} ${sent === 1 ? "person" : "people"} 📺`);
-    } catch (err) {
-      flash(err instanceof Error ? err.message : "Couldn't suggest");
-    }
+  const doRemove = async () => {
+    if (!removeTarget) return;
+    const { kind, id } = removeTarget;
+    setRemoveTarget(null);
+    if (kind === "game") await api.removeGame(id);
+    else await api.removeVideo(id);
+    reload();
   };
 
   const watchNow = async (id: string) => {
@@ -102,7 +134,7 @@ export function DashboardPage() {
         </div>
         <div className="library">
           {games.length === 0 && <div className="empty">No games yet — add one above or forward a post to the bot.</div>}
-          {games.map((game) => {
+          {games.slice(0, visibleGames).map((game) => {
             const coop = formatCoop(game);
             const players = formatPlayers(game);
             const price = formatPriceRub(game);
@@ -172,10 +204,16 @@ export function DashboardPage() {
                   >
                     {game.played ? "Played ✓" : "Mark played"}
                   </button>
-                  <button className="btn btn--suggest" onClick={() => suggestGame(game.id)}>
-                    Suggest to all
+                  <button
+                    className="btn btn--suggest"
+                    onClick={() => setSuggestTarget({ kind: "game", id: game.id, title: game.title })}
+                  >
+                    Suggest
                   </button>
-                  <button className="btn btn--danger" onClick={() => api.removeGame(game.id).then(reload)}>
+                  <button
+                    className="btn btn--danger"
+                    onClick={() => setRemoveTarget({ kind: "game", id: game.id, title: game.title })}
+                  >
                     Remove
                   </button>
                 </div>
@@ -184,6 +222,13 @@ export function DashboardPage() {
             );
           })}
         </div>
+        {games.length > visibleGames && (
+          <div className="show-more">
+            <button className="btn btn--ghost" onClick={() => setVisibleGames((v) => v + PAGE_SIZE)}>
+              Show more ({games.length - visibleGames})
+            </button>
+          </div>
+        )}
       </section>
 
       <section className="section">
@@ -196,7 +241,7 @@ export function DashboardPage() {
         </div>
         <div className="library">
           {videos.length === 0 && <div className="empty">No videos yet.</div>}
-          {videos.map((video) => (
+          {videos.slice(0, visibleVideos).map((video) => (
             <article className={`card${video.watched ? " is-done" : ""}`} key={video.id}>
               <a className="card__cover" href={video.url} target="_blank" rel="noreferrer">
                 <img src={`https://img.youtube.com/vi/${video.youtubeId}/hqdefault.jpg`} alt={video.title ?? ""} loading="lazy" />
@@ -214,10 +259,16 @@ export function DashboardPage() {
                   <button className="btn btn--primary" onClick={() => watchNow(video.id)}>
                     Watch now
                   </button>
-                  <button className="btn btn--suggest" onClick={() => suggestVideo(video.id)}>
-                    Suggest to all
+                  <button
+                    className="btn btn--suggest"
+                    onClick={() => setSuggestTarget({ kind: "video", id: video.id, title: video.title ?? video.url })}
+                  >
+                    Suggest
                   </button>
-                  <button className="btn btn--danger" onClick={() => api.removeVideo(video.id).then(reload)}>
+                  <button
+                    className="btn btn--danger"
+                    onClick={() => setRemoveTarget({ kind: "video", id: video.id, title: video.title ?? video.url })}
+                  >
                     Remove
                   </button>
                 </div>
@@ -225,10 +276,97 @@ export function DashboardPage() {
             </article>
           ))}
         </div>
+        {videos.length > visibleVideos && (
+          <div className="show-more">
+            <button className="btn btn--ghost" onClick={() => setVisibleVideos((v) => v + PAGE_SIZE)}>
+              Show more ({videos.length - visibleVideos})
+            </button>
+          </div>
+        )}
       </section>
+
+      {removeTarget && (
+        <Modal title="Remove?" onClose={() => setRemoveTarget(null)}>
+          <p className="modal__text">
+            Remove “{removeTarget.title}”? This can’t be undone.
+          </p>
+          <div className="actions">
+            <button className="btn btn--danger" onClick={doRemove}>
+              Remove
+            </button>
+            <button className="btn btn--ghost" onClick={() => setRemoveTarget(null)}>
+              Cancel
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {suggestTarget && (
+        <SuggestModal
+          title={suggestTarget.title}
+          recipients={recipients}
+          onClose={() => setSuggestTarget(null)}
+          onSend={doSuggest}
+        />
+      )}
 
       {toast && <div className="toast">{toast}</div>}
     </div>
+  );
+}
+
+/**
+ * Suggest picker: lists every group member (names from Telegram), all selected
+ * by default, and sends the suggestion only to the people left checked.
+ */
+function SuggestModal({
+  title,
+  recipients,
+  onClose,
+  onSend,
+}: {
+  title: string;
+  recipients: Recipient[];
+  onClose: () => void;
+  onSend: (recipientIds: string[]) => void | Promise<void>;
+}) {
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(recipients.map((r) => r.id)));
+  const [sending, setSending] = useState(false);
+
+  const toggle = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const send = async () => {
+    setSending(true);
+    await onSend([...selected]);
+  };
+
+  return (
+    <Modal title={`Suggest “${title}”`} onClose={onClose}>
+      <div className="picker">
+        {recipients.length === 0 && <p className="modal__text">No people to suggest to yet.</p>}
+        {recipients.map((r) => (
+          <label className="picker__row" key={r.id}>
+            <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} />
+            <span>{r.name}</span>
+          </label>
+        ))}
+      </div>
+      <div className="actions">
+        <button className="btn btn--primary" disabled={sending || selected.size === 0} onClick={send}>
+          {sending ? "Sending…" : `Suggest (${selected.size})`}
+        </button>
+        <button className="btn btn--ghost" onClick={onClose}>
+          Cancel
+        </button>
+      </div>
+    </Modal>
   );
 }
 
@@ -242,6 +380,7 @@ function GameReviewBlock({ game, meId, onSaved }: { game: Game; meId: string | n
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setDraft(game.myReview ?? "");
@@ -250,12 +389,20 @@ function GameReviewBlock({ game, meId, onSaved }: { game: Game; meId: string | n
   const reviews = game.reviews;
   const shown = showAll ? reviews : reviews.slice(0, 1);
 
+  const onDraftChange = (value: string) => {
+    setError(null);
+    setDraft(value.split("\n").slice(0, REVIEW_MAX_LINES).join("\n"));
+  };
+
   const save = async () => {
     setSaving(true);
+    setError(null);
     try {
       await api.setGameReview(game.id, draft.trim() ? draft.trim() : null);
       setEditing(false);
       onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't save review");
     } finally {
       setSaving(false);
     }
@@ -287,9 +434,12 @@ function GameReviewBlock({ game, meId, onSaved }: { game: Game; meId: string | n
             placeholder="Your review…"
             value={draft}
             maxLength={REVIEW_MAX_LENGTH}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => onDraftChange(e.target.value)}
           />
-          <div className="review__count">{draft.length}/{REVIEW_MAX_LENGTH}</div>
+          <div className="review__count">
+            {draft.length}/{REVIEW_MAX_LENGTH} · {draft.split("\n").length}/{REVIEW_MAX_LINES} lines
+          </div>
+          {error && <div className="review__error">{error}</div>}
           <div className="actions">
             <button className="btn btn--primary" onClick={save} disabled={saving}>
               {saving ? "Saving…" : "Save review"}

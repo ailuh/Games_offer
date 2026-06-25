@@ -1,10 +1,11 @@
 import { Body, Controller, Delete, Get, Injectable, Module, Param, Patch, Post, BadRequestException, UseGuards } from "@nestjs/common";
-import { IsBoolean, IsString } from "class-validator";
+import { IsArray, IsBoolean, IsOptional, IsString } from "class-validator";
 import { PrismaService } from "../prisma/prisma.service";
 import { SessionGuard } from "../auth/session.guard";
 import { CurrentUserId } from "../auth/current-user.decorator";
 import { parseYoutubeId, fetchYoutubeMeta } from "./youtube";
 import { SuggestionsModule, SuggestionsService } from "../suggestions/suggestions.module";
+import { LibraryModule, LibraryGateway } from "../library/library.module";
 
 class AddVideoDto {
   @IsString()
@@ -16,9 +17,19 @@ class SetWatchedDto {
   watched!: boolean;
 }
 
+class SuggestDto {
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  recipientIds?: string[];
+}
+
 @Injectable()
 export class VideosService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly library: LibraryGateway,
+  ) {}
 
   async list(userId: string) {
     const uid = BigInt(userId);
@@ -42,11 +53,13 @@ export class VideosService {
     if (!youtubeId) throw new BadRequestException("Unrecognized YouTube URL");
 
     const meta = await fetchYoutubeMeta(youtubeId);
-    return this.prisma.video.upsert({
+    const video = await this.prisma.video.upsert({
       where: { youtubeId },
       create: { youtubeId, url, title: meta.title, channel: meta.channel, suggestedById: BigInt(userId) },
       update: { title: meta.title, channel: meta.channel },
     });
+    this.library.notifyChanged();
+    return video;
   }
 
   async setWatched(userId: string, videoId: string, watched: boolean) {
@@ -56,11 +69,13 @@ export class VideosService {
       create: { userId: uid, videoId, watched },
       update: { watched },
     });
+    this.library.notifyChanged();
     return { ok: true };
   }
 
   async remove(videoId: string) {
     await this.prisma.video.delete({ where: { id: videoId } }).catch(() => undefined);
+    this.library.notifyChanged();
     return { ok: true };
   }
 }
@@ -89,8 +104,8 @@ class VideosController {
   }
 
   @Post(":id/suggest")
-  suggest(@CurrentUserId() userId: string, @Param("id") id: string) {
-    return this.suggestions.suggestVideo(id, userId);
+  suggest(@CurrentUserId() userId: string, @Param("id") id: string, @Body() dto: SuggestDto) {
+    return this.suggestions.suggestVideo(id, userId, dto.recipientIds);
   }
 
   @Delete(":id")
@@ -100,7 +115,7 @@ class VideosController {
 }
 
 @Module({
-  imports: [SuggestionsModule],
+  imports: [SuggestionsModule, LibraryModule],
   controllers: [VideosController],
   providers: [VideosService],
   exports: [VideosService],

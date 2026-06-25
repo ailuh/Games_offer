@@ -40,7 +40,7 @@ export class SuggestionsService {
     this.lastByUserItem.set(itemKey, now);
   }
 
-  async suggestGame(gameId: string, byUserId: string): Promise<{ sent: number }> {
+  async suggestGame(gameId: string, byUserId: string, recipientIds?: string[]): Promise<{ sent: number }> {
     const game = await this.prisma.game.findUnique({
       where: { id: gameId },
       include: { userStates: { include: { user: true } } },
@@ -64,7 +64,7 @@ export class SuggestionsService {
     const photos = [game.headerImage, ...game.screenshots.slice(0, MAX_ALBUM_SCREENSHOTS)].filter(
       (url): url is string => Boolean(url),
     );
-    return this.broadcast(lines.join("\n"), photos);
+    return this.broadcast(lines.join("\n"), photos, recipientIds);
   }
 
   /**
@@ -88,7 +88,7 @@ export class SuggestionsService {
     return ["", `💬 ${name} (${rating}, ${played}): ${pick.review!.trim()}`];
   }
 
-  async suggestVideo(videoId: string, byUserId: string): Promise<{ sent: number }> {
+  async suggestVideo(videoId: string, byUserId: string, recipientIds?: string[]): Promise<{ sent: number }> {
     const video = await this.prisma.video.findUnique({ where: { id: videoId } });
     if (!video) throw new NotFoundException("Video not found");
     this.rateLimit(byUserId, videoId);
@@ -96,7 +96,7 @@ export class SuggestionsService {
     const who = await this.displayName(byUserId);
     const thumb = `https://img.youtube.com/vi/${video.youtubeId}/hqdefault.jpg`;
     const text = `📺 ${who} suggests watching tonight: ${video.title ?? video.url}\n${video.url}`;
-    return this.broadcast(text, [thumb]);
+    return this.broadcast(text, [thumb], recipientIds);
   }
 
   private async displayName(userId: string): Promise<string> {
@@ -104,17 +104,21 @@ export class SuggestionsService {
     return user?.firstName ?? user?.username ?? "Someone";
   }
 
-  private async broadcast(text: string, photoUrls: string[]): Promise<{ sent: number }> {
-    const recipients = this.config.get("ALLOWED_TELEGRAM_IDS_PARSED", { infer: true });
+  private async broadcast(text: string, photoUrls: string[], recipientIds?: string[]): Promise<{ sent: number }> {
+    const allowed = this.config.get("ALLOWED_TELEGRAM_IDS_PARSED", { infer: true }).map((id) => id.toString());
+    const targets =
+      recipientIds && recipientIds.length > 0
+        ? allowed.filter((id) => recipientIds.includes(id))
+        : allowed;
     await Promise.all(
-      recipients.map((id) => {
+      targets.map((id) => {
         const send = photoUrls.length > 0
-          ? this.telegram.sendPhotos(id.toString(), photoUrls, text)
-          : this.telegram.sendMessage(id.toString(), text);
+          ? this.telegram.sendPhotos(id, photoUrls, text)
+          : this.telegram.sendMessage(id, text);
         return send.catch(() => undefined);
       }),
     );
-    return { sent: recipients.length };
+    return { sent: targets.length };
   }
 }
 

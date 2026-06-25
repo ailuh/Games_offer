@@ -197,7 +197,11 @@ input:focus, select:focus, button:focus-visible {
 .review__author { font-weight: 700; font-size: 13px; color: var(--text); }
 .review__rating { font: 700 12px var(--font-num); color: var(--accent, #fbbf24); }
 .review__played { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .03em; }
-.review__text { font-size: 13px; color: var(--text-2); white-space: pre-wrap; line-height: 1.45; }
+.review__text {
+  font-size: 13px; color: var(--text-2); white-space: pre-wrap; line-height: 1.45;
+  overflow-wrap: anywhere; max-height: 16em; overflow-y: auto;
+}
+.review__error { font-size: 12px; font-weight: 600; color: var(--danger); margin-bottom: 8px; }
 .review__input {
   width: 100%; min-height: 64px; resize: vertical; font: inherit; font-size: 13px;
   background: var(--surface-1); color: var(--text); border: 1px solid var(--border);
@@ -205,6 +209,26 @@ input:focus, select:focus, button:focus-visible {
 }
 .review__count { font: 600 11px var(--font-num); color: var(--text-muted); text-align: right; margin: -4px 0 8px; }
 .btn--sm { padding: 4px 10px; font-size: 12px; align-self: flex-start; }
+
+.show-more { display: flex; justify-content: center; margin-top: 16px; }
+
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, .6); backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 100;
+}
+.modal {
+  width: 100%; max-width: 420px; background: var(--surface-1); border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg); padding: 22px; box-shadow: var(--shadow-md);
+}
+.modal__title { margin: 0 0 12px; font-size: 18px; }
+.modal__text { color: var(--text-2); margin: 0 0 18px; line-height: 1.5; }
+.picker { display: flex; flex-direction: column; gap: 4px; margin-bottom: 18px; max-height: 50vh; overflow-y: auto; }
+.picker__row {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--r-sm);
+  cursor: pointer; font-size: 14px; color: var(--text);
+}
+.picker__row:hover { background: var(--surface-2); }
+.picker__row input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }

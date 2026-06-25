@@ -87,6 +87,16 @@ export const RATING_MIN = 1;
 export const RATING_MAX = 10;
 
 export const REVIEW_MAX_LENGTH = 503;
+export const REVIEW_MAX_LINES = 12;
+
+/**
+ * Tidies a review before storage: normalises line endings, collapses runs of
+ * blank lines to at most one, and trims trailing whitespace. Does not cap the
+ * line count — callers validate that separately.
+ */
+export function normalizeReview(text: string): string {
+  return text.replace(/\r\n/g, "\n").replace(/\n{3,}/g, "\n\n").trimEnd();
+}
 
 /**
  * One person's take on a game: their written review plus the rating and
