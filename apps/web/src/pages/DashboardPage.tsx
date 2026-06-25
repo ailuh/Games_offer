@@ -106,9 +106,8 @@ export function DashboardPage() {
             const coop = formatCoop(game);
             const players = formatPlayers(game);
             const price = formatPriceRub(game);
-            return (
-            <article className={`card${game.played ? " is-done" : ""}`} key={game.id}>
-              <div className="card__cover">
+            const coverInner = (
+              <>
                 {game.headerImage ? (
                   <img src={game.headerImage} alt={game.title} loading="lazy" />
                 ) : (
@@ -121,7 +120,17 @@ export function DashboardPage() {
                   {coop && <span className="badge badge--coop">🤝 Co-op</span>}
                   {game.releaseDateRaw && <span className="badge">{game.releaseDateRaw}</span>}
                 </div>
-              </div>
+              </>
+            );
+            return (
+            <article className={`card${game.played ? " is-done" : ""}`} key={game.id}>
+              {game.steamUrl ? (
+                <a className="card__cover" href={game.steamUrl} target="_blank" rel="noreferrer">
+                  {coverInner}
+                </a>
+              ) : (
+                <div className="card__cover">{coverInner}</div>
+              )}
               <div className="card__body">
                 <div className="card__title">{game.title}</div>
                 {game.genres.length > 0 && <div className="card__meta">{game.genres.join(" · ")}</div>}

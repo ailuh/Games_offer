@@ -68,26 +68,24 @@ export class SuggestionsService {
   }
 
   /**
-   * Renders only the most recently written review for the game (by updatedAt):
-   * the author's rating, whether they played it, their name, and their text.
+   * Picks one of the game's reviews at random and renders it: the author's
+   * rating, whether they played it, their name, and their text.
    */
   private formatReviews(
     states: Array<{
       review: string | null;
       rating: number | null;
       played: boolean;
-      updatedAt: Date;
       user: { firstName: string | null; username: string | null } | null;
     }>,
   ): string[] {
-    const latest = states
-      .filter((s) => s.review && s.review.trim().length > 0)
-      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())[0];
-    if (!latest) return [];
-    const name = latest.user?.firstName ?? latest.user?.username ?? "Someone";
-    const rating = latest.rating ? `★${latest.rating}` : "—";
-    const played = latest.played ? "played" : "not played";
-    return ["", `💬 ${name} (${rating}, ${played}): ${latest.review!.trim()}`];
+    const withReview = states.filter((s) => s.review && s.review.trim().length > 0);
+    if (withReview.length === 0) return [];
+    const pick = withReview[Math.floor(Math.random() * withReview.length)];
+    const name = pick.user?.firstName ?? pick.user?.username ?? "Someone";
+    const rating = pick.rating ? `★${pick.rating}` : "—";
+    const played = pick.played ? "played" : "not played";
+    return ["", `💬 ${name} (${rating}, ${played}): ${pick.review!.trim()}`];
   }
 
   async suggestVideo(videoId: string, byUserId: string): Promise<{ sent: number }> {
