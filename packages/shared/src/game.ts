@@ -67,3 +67,18 @@ export type GameStatus = (typeof GAME_STATUS)[number];
 
 export const RATING_MIN = 1;
 export const RATING_MAX = 10;
+
+export const REVIEW_MAX_LENGTH = 1000;
+
+/**
+ * One person's take on a game: their written review plus the rating and
+ * played-flag captured at the same time, signed with their Telegram name. Each
+ * user has at most one per game (editable). Sent along with a game suggestion.
+ */
+export interface GameReview {
+  userId: string;
+  authorName: string;
+  review: string;
+  rating: number | null;
+  played: boolean;
+}

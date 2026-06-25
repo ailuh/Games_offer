@@ -186,6 +186,24 @@ input:focus, select:focus, button:focus-visible {
   border: 1px solid var(--border); border-radius: var(--r-lg); padding: 32px; box-shadow: var(--shadow-md);
 }
 
+.reviews { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 2px; }
+.review {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm, 8px);
+  padding: 8px 10px;
+}
+.review--own { border-color: var(--accent-soft); }
+.review__head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
+.review__author { font-weight: 700; font-size: 13px; color: var(--text); }
+.review__rating { font: 700 12px var(--font-num); color: var(--accent, #fbbf24); }
+.review__played { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .03em; }
+.review__text { font-size: 13px; color: var(--text-2); white-space: pre-wrap; line-height: 1.45; }
+.review__input {
+  width: 100%; min-height: 64px; resize: vertical; font: inherit; font-size: 13px;
+  background: var(--surface-1); color: var(--text); border: 1px solid var(--border);
+  border-radius: var(--r-sm, 8px); padding: 8px 10px; margin-bottom: 8px;
+}
+.btn--sm { padding: 4px 10px; font-size: 12px; align-self: flex-start; }
+
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
   .card:hover { transform: none; }

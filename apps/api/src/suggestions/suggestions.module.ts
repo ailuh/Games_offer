@@ -1,4 +1,4 @@
-import { Injectable, Module, NotFoundException } from "@nestjs/common";
+import { HttpException, HttpStatus, Injectable, Module, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { formatCoop, formatPlayers } from "@app/shared";
 import { PrismaService } from "../prisma/prisma.service";
@@ -6,18 +6,50 @@ import { TelegramModule, TelegramService } from "../telegram/telegram.module";
 import type { Env } from "../config/env.validation";
 
 const MAX_ALBUM_SCREENSHOTS = 5;
+// Anti-spam: a user must wait between any two suggestions, and cannot re-suggest
+// the same item for a longer window. Kept in memory — fine for a tiny group and
+// resets on restart, which is acceptable for spam control.
+const USER_COOLDOWN_MS = 30 * 1000;
+const ITEM_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 
 @Injectable()
 export class SuggestionsService {
+  private readonly lastByUser = new Map<string, number>();
+  private readonly lastByUserItem = new Map<string, number>();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly telegram: TelegramService,
     private readonly config: ConfigService<Env, true>,
   ) {}
 
+  /**
+   * Throws HTTP 429 when the user is suggesting too fast, or re-suggesting the
+   * same item within the per-item window. Records the timestamps on success.
+   */
+  private rateLimit(userId: string, itemId: string): void {
+    const now = Date.now();
+    const lastUser = this.lastByUser.get(userId) ?? 0;
+    if (now - lastUser < USER_COOLDOWN_MS) {
+      const wait = Math.ceil((USER_COOLDOWN_MS - (now - lastUser)) / 1000);
+      throw new HttpException(`Too many suggestions — wait ${wait}s`, HttpStatus.TOO_MANY_REQUESTS);
+    }
+    const itemKey = `${userId}:${itemId}`;
+    const lastItem = this.lastByUserItem.get(itemKey) ?? 0;
+    if (now - lastItem < ITEM_COOLDOWN_MS) {
+      throw new HttpException("You already suggested this recently", HttpStatus.TOO_MANY_REQUESTS);
+    }
+    this.lastByUser.set(userId, now);
+    this.lastByUserItem.set(itemKey, now);
+  }
+
   async suggestGame(gameId: string, byUserId: string): Promise<{ sent: number }> {
-    const game = await this.prisma.game.findUnique({ where: { id: gameId } });
+    const game = await this.prisma.game.findUnique({
+      where: { id: gameId },
+      include: { userStates: { include: { user: true } } },
+    });
     if (!game) throw new NotFoundException("Game not found");
+    this.rateLimit(byUserId, gameId);
 
     const who = await this.displayName(byUserId);
     const coop = formatCoop(game);
@@ -27,6 +59,7 @@ export class SuggestionsService {
       players ? `👥 ${players}` : null,
       coop ? `🤝 ${coop}` : null,
       game.steamUrl,
+      ...this.formatReviews(game.userStates),
     ].filter((line): line is string => Boolean(line));
 
     const photos = [game.headerImage, ...game.screenshots.slice(0, MAX_ALBUM_SCREENSHOTS)].filter(
@@ -35,9 +68,29 @@ export class SuggestionsService {
     return this.broadcast(lines.join("\n"), photos);
   }
 
+  /**
+   * Renders the group's reviews for a game into message lines: each person's
+   * rating, whether they played it, their name, and their text.
+   */
+  private formatReviews(
+    states: Array<{ review: string | null; rating: number | null; played: boolean; user: { firstName: string | null; username: string | null } | null }>,
+  ): string[] {
+    const withReview = states.filter((s) => s.review && s.review.trim().length > 0);
+    if (withReview.length === 0) return [];
+    const lines = ["", "💬 Reviews:"];
+    for (const s of withReview) {
+      const name = s.user?.firstName ?? s.user?.username ?? "Someone";
+      const rating = s.rating ? `★${s.rating}` : "—";
+      const played = s.played ? "played" : "not played";
+      lines.push(`• ${name} (${rating}, ${played}): ${s.review!.trim()}`);
+    }
+    return lines;
+  }
+
   async suggestVideo(videoId: string, byUserId: string): Promise<{ sent: number }> {
     const video = await this.prisma.video.findUnique({ where: { id: videoId } });
     if (!video) throw new NotFoundException("Video not found");
+    this.rateLimit(byUserId, videoId);
 
     const who = await this.displayName(byUserId);
     const thumb = `https://img.youtube.com/vi/${video.youtubeId}/hqdefault.jpg`;

@@ -10,8 +10,10 @@ type Player = {
   playVideo: () => void;
   pauseVideo: () => void;
   getCurrentTime: () => number;
+  getDuration: () => number;
   mute: () => void;
   unMute: () => void;
+  destroy: () => void;
 };
 
 export function WatchPage() {
@@ -23,6 +25,24 @@ export function WatchPage() {
   const stateRef = useRef<RoomState | null>(null);
   const syncedAtRef = useRef(0);
   const soundEnabledRef = useRef(false);
+  const pauseTimerRef = useRef<number | null>(null);
+
+  const clearPauseTimer = () => {
+    if (pauseTimerRef.current !== null) {
+      window.clearTimeout(pauseTimerRef.current);
+      pauseTimerRef.current = null;
+    }
+  };
+
+  // Tear the player down on unmount so leaving and returning to the room starts a
+  // fresh iframe instead of reviving a stale, frozen one.
+  useEffect(() => {
+    return () => {
+      clearPauseTimer();
+      playerRef.current?.destroy?.();
+      playerRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     const socket = io({ withCredentials: true });
@@ -83,8 +103,14 @@ export function WatchPage() {
   function livePosition(): number {
     const s = stateRef.current;
     if (!s) return 0;
-    if (s.paused) return Math.max(0, s.positionSeconds);
-    return Math.max(0, s.positionSeconds + (Date.now() - syncedAtRef.current) / 1000);
+    const raw = s.paused ? s.positionSeconds : s.positionSeconds + (Date.now() - syncedAtRef.current) / 1000;
+    let pos = Math.max(0, raw);
+    // If the room's clock ran past the end (e.g. it was left playing with nobody
+    // watching), clamp to the video length so we show the last frame, not a black
+    // void with a stuck subtitle.
+    const duration = playerRef.current?.getDuration?.() ?? 0;
+    if (duration > 0 && pos > duration) pos = duration;
+    return pos;
   }
 
   function syncToState(): void {
@@ -145,13 +171,39 @@ export function WatchPage() {
   }
 
   function onPlayerStateChange(event: { data: number }): void {
+    const YT = (window as unknown as {
+      YT: { PlayerState: { PLAYING: number; PAUSED: number; ENDED: number; BUFFERING: number } };
+    }).YT;
+
+    // Buffering is transient and must never be broadcast as a pause: a slow
+    // client stalling would otherwise pause the video for everyone. Cancel any
+    // pending pause when buffering starts.
+    if (event.data === YT.PlayerState.BUFFERING) {
+      clearPauseTimer();
+      return;
+    }
     if (applyingRemote.current) return;
+
     const player = playerRef.current;
     const pos = player?.getCurrentTime() ?? 0;
-    const YT = (window as unknown as { YT: { PlayerState: { PLAYING: number; PAUSED: number; ENDED: number } } }).YT;
-    if (event.data === YT.PlayerState.PLAYING) socketRef.current?.emit("playback:play", pos);
-    if (event.data === YT.PlayerState.PAUSED) socketRef.current?.emit("playback:pause", pos);
-    if (event.data === YT.PlayerState.ENDED) socketRef.current?.emit("queue:next");
+
+    if (event.data === YT.PlayerState.PLAYING) {
+      clearPauseTimer();
+      socketRef.current?.emit("playback:play", pos);
+    }
+    if (event.data === YT.PlayerState.PAUSED) {
+      // Debounce: a genuine pause stays paused, but a buffering blip flips back to
+      // PLAYING/BUFFERING within a moment and cancels this before it broadcasts.
+      clearPauseTimer();
+      pauseTimerRef.current = window.setTimeout(() => {
+        pauseTimerRef.current = null;
+        socketRef.current?.emit("playback:pause", playerRef.current?.getCurrentTime() ?? pos);
+      }, 800);
+    }
+    if (event.data === YT.PlayerState.ENDED) {
+      clearPauseTimer();
+      socketRef.current?.emit("queue:next");
+    }
   }
 
   const queue = state?.queue ?? [];

@@ -6,6 +6,7 @@ import { api, Game, Video } from "../api/client";
 export function DashboardPage() {
   const [games, setGames] = useState<Game[]>([]);
   const [videos, setVideos] = useState<Video[]>([]);
+  const [meId, setMeId] = useState<string | null>(null);
   const [newUrl, setNewUrl] = useState("");
   const [newGame, setNewGame] = useState("");
   const [addingGame, setAddingGame] = useState(false);
@@ -18,6 +19,9 @@ export function DashboardPage() {
   };
 
   useEffect(reload, []);
+  useEffect(() => {
+    api.me().then((u) => setMeId(u.id)).catch(() => undefined);
+  }, []);
 
   const flash = (message: string) => {
     setToast(message);
@@ -47,13 +51,21 @@ export function DashboardPage() {
   };
 
   const suggestGame = async (id: string) => {
-    const { sent } = await api.suggestGame(id);
-    flash(`Suggested to ${sent} ${sent === 1 ? "person" : "people"} 🎮`);
+    try {
+      const { sent } = await api.suggestGame(id);
+      flash(`Suggested to ${sent} ${sent === 1 ? "person" : "people"} 🎮`);
+    } catch (err) {
+      flash(err instanceof Error ? err.message : "Couldn't suggest");
+    }
   };
 
   const suggestVideo = async (id: string) => {
-    const { sent } = await api.suggestVideo(id);
-    flash(`Suggested to ${sent} ${sent === 1 ? "person" : "people"} 📺`);
+    try {
+      const { sent } = await api.suggestVideo(id);
+      flash(`Suggested to ${sent} ${sent === 1 ? "person" : "people"} 📺`);
+    } catch (err) {
+      flash(err instanceof Error ? err.message : "Couldn't suggest");
+    }
   };
 
   const watchNow = async (id: string) => {
@@ -141,6 +153,7 @@ export function DashboardPage() {
                     </span>
                   )}
                 </div>
+                <GameReviewBlock game={game} meId={meId} onSaved={reload} />
                 <div className="actions">
                   <button
                     className={`btn ${game.played ? "btn--done" : "btn--ghost"}`}
@@ -193,6 +206,9 @@ export function DashboardPage() {
                   <button className="btn btn--suggest" onClick={() => suggestVideo(video.id)}>
                     Suggest to all
                   </button>
+                  <button className="btn btn--danger" onClick={() => api.removeVideo(video.id).then(reload)}>
+                    Remove
+                  </button>
                 </div>
               </div>
             </article>
@@ -201,6 +217,83 @@ export function DashboardPage() {
       </section>
 
       {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+/**
+ * Per-game review area: everyone's reviews (signed with their Telegram name,
+ * with rating and played flag), plus an editable box for your own — one review
+ * per person, changeable later.
+ */
+function GameReviewBlock({ game, meId, onSaved }: { game: Game; meId: string | null; onSaved: () => void }) {
+  const [draft, setDraft] = useState(game.myReview ?? "");
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setDraft(game.myReview ?? "");
+  }, [game.myReview]);
+
+  const others = game.reviews.filter((r) => r.userId !== meId);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.setGameReview(game.id, draft.trim() ? draft.trim() : null);
+      setEditing(false);
+      onSaved();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="reviews">
+      {others.map((r) => (
+        <div className="review" key={r.userId}>
+          <div className="review__head">
+            <span className="review__author">{r.authorName}</span>
+            {r.rating && <span className="review__rating">★ {r.rating}</span>}
+            <span className="review__played">{r.played ? "played" : "not played"}</span>
+          </div>
+          <div className="review__text">{r.review}</div>
+        </div>
+      ))}
+
+      {editing ? (
+        <div className="review review--own">
+          <textarea
+            className="review__input"
+            placeholder="Your review…"
+            value={draft}
+            maxLength={1000}
+            onChange={(e) => setDraft(e.target.value)}
+          />
+          <div className="actions">
+            <button className="btn btn--primary" onClick={save} disabled={saving}>
+              {saving ? "Saving…" : "Save review"}
+            </button>
+            <button className="btn btn--ghost" onClick={() => { setDraft(game.myReview ?? ""); setEditing(false); }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : game.myReview ? (
+        <div className="review review--own">
+          <div className="review__head">
+            <span className="review__author">You</span>
+          </div>
+          <div className="review__text">{game.myReview}</div>
+          <button className="btn btn--ghost btn--sm" onClick={() => setEditing(true)}>
+            Edit review
+          </button>
+        </div>
+      ) : (
+        <button className="btn btn--ghost btn--sm" onClick={() => setEditing(true)}>
+          ✍ Write a review
+        </button>
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import {
   ConnectedSocket,
   MessageBody,
   OnGatewayConnection,
+  OnGatewayDisconnect,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
@@ -22,7 +23,7 @@ import type { Env } from "../config/env.validation";
  */
 @WebSocketGateway({ cors: { origin: true, credentials: true } })
 @Injectable()
-export class WatchGateway implements OnGatewayConnection {
+export class WatchGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server!: Server;
 
@@ -68,6 +69,20 @@ export class WatchGateway implements OnGatewayConnection {
 
   handleConnection(client: Socket): void {
     client.emit("state:sync", this.snapshot());
+  }
+
+  /**
+   * When the last viewer leaves, freeze the clock. Otherwise the position keeps
+   * advancing by wall-clock with nobody around to send queue:next, so it runs
+   * past the end of the video and the next person to join seeks into a black void.
+   */
+  handleDisconnect(client: Socket): void {
+    const sockets = this.server?.sockets?.sockets;
+    const remaining = sockets ? [...sockets.keys()].filter((id) => id !== client.id).length : 0;
+    if (remaining === 0 && !this.paused) {
+      this.setPlayback(this.effectivePosition(), true);
+    }
+    if (this.hostId === client.id) this.hostId = null;
   }
 
   @SubscribeMessage("room:join")

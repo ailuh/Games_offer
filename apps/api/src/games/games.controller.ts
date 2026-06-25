@@ -4,7 +4,7 @@ import { CurrentUserId } from "../auth/current-user.decorator";
 import { GamesService } from "./games.service";
 import { SuggestionsService } from "../suggestions/suggestions.module";
 import { GameIngestService } from "./ingest.module";
-import { CreateGameDto, IngestGameDto, SetPlayedDto, SetRatingDto } from "./dto";
+import { CreateGameDto, IngestGameDto, SetPlayedDto, SetRatingDto, SetReviewDto } from "./dto";
 
 @Controller("games")
 @UseGuards(SessionGuard)
@@ -45,6 +45,11 @@ export class GamesController {
   @Patch(":id/rating")
   setRating(@CurrentUserId() userId: string, @Param("id") id: string, @Body() dto: SetRatingDto) {
     return this.games.setRating(userId, id, dto.rating);
+  }
+
+  @Patch(":id/review")
+  setReview(@CurrentUserId() userId: string, @Param("id") id: string, @Body() dto: SetReviewDto) {
+    return this.games.setReview(userId, id, dto.review);
   }
 
   @Delete(":id")

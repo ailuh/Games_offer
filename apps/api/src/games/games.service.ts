@@ -10,7 +10,7 @@ export class GamesService {
     const uid = BigInt(userId);
     const games = await this.prisma.game.findMany({
       where: { status: { not: "REMOVED" } },
-      include: { userStates: true },
+      include: { userStates: { include: { user: true } } },
       orderBy: [{ releaseDate: "asc" }, { createdAt: "desc" }],
     });
 
@@ -24,12 +24,24 @@ export class GamesService {
           ? Math.round((ratings.reduce((sum, r) => sum + r, 0) / ratings.length) * 2) / 2
           : null;
 
+      const reviews = game.userStates
+        .filter((state) => state.review && state.review.trim().length > 0)
+        .map((state) => ({
+          userId: state.userId.toString(),
+          authorName: state.user?.firstName ?? state.user?.username ?? "Someone",
+          review: state.review as string,
+          rating: state.rating,
+          played: state.played,
+        }));
+
       const { userStates, suggestedById, ...rest } = game;
       return {
         ...rest,
         suggestedById: suggestedById?.toString() ?? null,
         played: mine?.played ?? false,
         myRating: mine?.rating ?? null,
+        myReview: mine?.review ?? null,
+        reviews,
         avgRating,
         ratingCount: ratings.length,
       };
@@ -65,6 +77,17 @@ export class GamesService {
       where: { userId_gameId: { userId: uid, gameId } },
       create: { userId: uid, gameId, rating },
       update: { rating },
+    });
+    return { ok: true };
+  }
+
+  async setReview(userId: string, gameId: string, review: string | null) {
+    const uid = BigInt(userId);
+    const trimmed = review?.trim() ? review.trim() : null;
+    await this.prisma.userGame.upsert({
+      where: { userId_gameId: { userId: uid, gameId } },
+      create: { userId: uid, gameId, review: trimmed },
+      update: { review: trimmed },
     });
     return { ok: true };
   }

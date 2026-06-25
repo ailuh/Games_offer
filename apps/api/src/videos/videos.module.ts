@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Injectable, Module, Param, Patch, Post, BadRequestException, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Injectable, Module, Param, Patch, Post, BadRequestException, UseGuards } from "@nestjs/common";
 import { IsBoolean, IsString } from "class-validator";
 import { PrismaService } from "../prisma/prisma.service";
 import { SessionGuard } from "../auth/session.guard";
@@ -58,6 +58,12 @@ export class VideosService {
     });
     return { ok: true };
   }
+
+  async remove(videoId: string) {
+    // Hard delete; UserVideo and WatchQueueItem rows cascade (see schema).
+    await this.prisma.video.delete({ where: { id: videoId } }).catch(() => undefined);
+    return { ok: true };
+  }
 }
 
 @Controller("videos")
@@ -86,6 +92,11 @@ class VideosController {
   @Post(":id/suggest")
   suggest(@CurrentUserId() userId: string, @Param("id") id: string) {
     return this.suggestions.suggestVideo(id, userId);
+  }
+
+  @Delete(":id")
+  remove(@Param("id") id: string) {
+    return this.videos.remove(id);
   }
 }
 

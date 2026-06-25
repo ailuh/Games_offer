@@ -1,5 +1,5 @@
-import { IsArray, IsBoolean, IsInt, IsOptional, IsString, Max, Min, ValidateIf } from "class-validator";
-import { RATING_MAX, RATING_MIN } from "@app/shared";
+import { IsArray, IsBoolean, IsInt, IsOptional, IsString, MaxLength, Max, Min, ValidateIf } from "class-validator";
+import { RATING_MAX, RATING_MIN, REVIEW_MAX_LENGTH } from "@app/shared";
 
 export class CreateGameDto {
   @IsString()
@@ -40,4 +40,12 @@ export class SetRatingDto {
   @Min(RATING_MIN)
   @Max(RATING_MAX)
   rating!: number | null;
+}
+
+export class SetReviewDto {
+  // null/empty clears the review; otherwise plain text capped to a sane length.
+  @ValidateIf((dto: SetReviewDto) => dto.review !== null)
+  @IsString()
+  @MaxLength(REVIEW_MAX_LENGTH)
+  review!: string | null;
 }
