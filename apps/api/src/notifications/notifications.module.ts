@@ -1,7 +1,7 @@
 import { Injectable, Logger, Module } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { ConfigService } from "@nestjs/config";
-import { formatCoop, formatPlayers } from "@app/shared";
+import { formatCoop, formatPlayers, formatPriceRub } from "@app/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { SteamModule, SteamService } from "../steam/steam.module";
 import { TelegramModule, TelegramService } from "../telegram/telegram.module";
@@ -44,10 +44,12 @@ export class NotificationsService {
 
       const coop = formatCoop(game);
       const players = formatPlayers(game);
+      const price = formatPriceRub(details ?? game);
       const lines = [
         shifted
           ? `🎮 Heads up: "${game.title}" looks delayed — Steam still marks it as coming soon.`
           : `🎮 Releasing today: "${game.title}"`,
+        price ? `💰 ${price}` : null,
         players ? `👥 ${players}` : null,
         coop ? `🤝 ${coop}` : null,
         game.steamUrl,

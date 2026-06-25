@@ -1,14 +1,11 @@
 import { HttpException, HttpStatus, Injectable, Module, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { formatCoop, formatPlayers } from "@app/shared";
+import { formatCoop, formatPlayers, formatPriceRub } from "@app/shared";
 import { PrismaService } from "../prisma/prisma.service";
 import { TelegramModule, TelegramService } from "../telegram/telegram.module";
 import type { Env } from "../config/env.validation";
 
 const MAX_ALBUM_SCREENSHOTS = 5;
-// Anti-spam: a user must wait between any two suggestions, and cannot re-suggest
-// the same item for a longer window. Kept in memory — fine for a tiny group and
-// resets on restart, which is acceptable for spam control.
 const USER_COOLDOWN_MS = 30 * 1000;
 const ITEM_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 
@@ -54,8 +51,10 @@ export class SuggestionsService {
     const who = await this.displayName(byUserId);
     const coop = formatCoop(game);
     const players = formatPlayers(game);
+    const price = formatPriceRub(game);
     const lines = [
       `🎮 ${who} suggests for tonight: "${game.title}"`,
+      price ? `💰 ${price}` : null,
       players ? `👥 ${players}` : null,
       coop ? `🤝 ${coop}` : null,
       game.steamUrl,
@@ -69,22 +68,26 @@ export class SuggestionsService {
   }
 
   /**
-   * Renders the group's reviews for a game into message lines: each person's
-   * rating, whether they played it, their name, and their text.
+   * Renders only the most recently written review for the game (by updatedAt):
+   * the author's rating, whether they played it, their name, and their text.
    */
   private formatReviews(
-    states: Array<{ review: string | null; rating: number | null; played: boolean; user: { firstName: string | null; username: string | null } | null }>,
+    states: Array<{
+      review: string | null;
+      rating: number | null;
+      played: boolean;
+      updatedAt: Date;
+      user: { firstName: string | null; username: string | null } | null;
+    }>,
   ): string[] {
-    const withReview = states.filter((s) => s.review && s.review.trim().length > 0);
-    if (withReview.length === 0) return [];
-    const lines = ["", "💬 Reviews:"];
-    for (const s of withReview) {
-      const name = s.user?.firstName ?? s.user?.username ?? "Someone";
-      const rating = s.rating ? `★${s.rating}` : "—";
-      const played = s.played ? "played" : "not played";
-      lines.push(`• ${name} (${rating}, ${played}): ${s.review!.trim()}`);
-    }
-    return lines;
+    const latest = states
+      .filter((s) => s.review && s.review.trim().length > 0)
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())[0];
+    if (!latest) return [];
+    const name = latest.user?.firstName ?? latest.user?.username ?? "Someone";
+    const rating = latest.rating ? `★${latest.rating}` : "—";
+    const played = latest.played ? "played" : "not played";
+    return ["", `💬 ${name} (${rating}, ${played}): ${latest.review!.trim()}`];
   }
 
   async suggestVideo(videoId: string, byUserId: string): Promise<{ sent: number }> {

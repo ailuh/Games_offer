@@ -54,6 +54,8 @@ export class GameIngestService {
         coopSplitscreen: details?.coopSplitscreen ?? false,
         playersMin: players.playersMin,
         playersMax: players.playersMax,
+        priceRub: details?.priceRub ?? null,
+        priceIsFree: details?.priceIsFree ?? false,
         suggestedById: BigInt(suggestedById),
       },
     });

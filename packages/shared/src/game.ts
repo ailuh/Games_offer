@@ -62,13 +62,31 @@ export function formatPlayers(info: Partial<PlayersInfo>): string | null {
   return null;
 }
 
+/**
+ * Russian-region Steam price. priceRub is whole rubles; priceIsFree marks
+ * free-to-play titles. Both unknown until the game is enriched from Steam.
+ */
+export interface PriceInfo {
+  priceRub: number | null;
+  priceIsFree: boolean;
+}
+
+/**
+ * Human-readable RU price: "Free", "499 ₽", or null when unknown.
+ */
+export function formatPriceRub(info: Partial<PriceInfo>): string | null {
+  if (info.priceIsFree) return "Free";
+  if (info.priceRub != null) return `${info.priceRub} ₽`;
+  return null;
+}
+
 export const GAME_STATUS = ["BACKLOG", "RELEASED", "REMOVED"] as const;
 export type GameStatus = (typeof GAME_STATUS)[number];
 
 export const RATING_MIN = 1;
 export const RATING_MAX = 10;
 
-export const REVIEW_MAX_LENGTH = 1000;
+export const REVIEW_MAX_LENGTH = 503;
 
 /**
  * One person's take on a game: their written review plus the rating and

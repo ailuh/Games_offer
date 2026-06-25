@@ -37,6 +37,8 @@ export interface Game {
   coopSplitscreen: boolean;
   playersMin: number | null;
   playersMax: number | null;
+  priceRub: number | null;
+  priceIsFree: boolean;
   played: boolean;
   myRating: number | null;
   myReview: string | null;

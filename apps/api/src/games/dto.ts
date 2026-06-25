@@ -34,7 +34,6 @@ export class SetPlayedDto {
 }
 
 export class SetRatingDto {
-  // null clears the rating (toggle off); a number must be within range.
   @ValidateIf((dto: SetRatingDto) => dto.rating !== null)
   @IsInt()
   @Min(RATING_MIN)
@@ -43,7 +42,6 @@ export class SetRatingDto {
 }
 
 export class SetReviewDto {
-  // null/empty clears the review; otherwise plain text capped to a sane length.
   @ValidateIf((dto: SetReviewDto) => dto.review !== null)
   @IsString()
   @MaxLength(REVIEW_MAX_LENGTH)

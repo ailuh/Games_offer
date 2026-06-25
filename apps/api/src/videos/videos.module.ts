@@ -60,7 +60,6 @@ export class VideosService {
   }
 
   async remove(videoId: string) {
-    // Hard delete; UserVideo and WatchQueueItem rows cascade (see schema).
     await this.prisma.video.delete({ where: { id: videoId } }).catch(() => undefined);
     return { ok: true };
   }

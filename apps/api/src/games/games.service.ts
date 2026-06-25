@@ -26,6 +26,7 @@ export class GamesService {
 
       const reviews = game.userStates
         .filter((state) => state.review && state.review.trim().length > 0)
+        .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
         .map((state) => ({
           userId: state.userId.toString(),
           authorName: state.user?.firstName ?? state.user?.username ?? "Someone",

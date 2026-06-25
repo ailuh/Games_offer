@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Game" ADD COLUMN "priceRub" INTEGER;
+ALTER TABLE "Game" ADD COLUMN "priceIsFree" BOOLEAN NOT NULL DEFAULT false;

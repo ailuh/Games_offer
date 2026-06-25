@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { formatCoop, formatPlayers } from "@app/shared";
+import { formatCoop, formatPlayers, formatPriceRub, REVIEW_MAX_LENGTH } from "@app/shared";
 import { api, Game, Video } from "../api/client";
 
 export function DashboardPage() {
@@ -105,6 +105,7 @@ export function DashboardPage() {
           {games.map((game) => {
             const coop = formatCoop(game);
             const players = formatPlayers(game);
+            const price = formatPriceRub(game);
             return (
             <article className={`card${game.played ? " is-done" : ""}`} key={game.id}>
               <div className="card__cover">
@@ -114,6 +115,7 @@ export function DashboardPage() {
                   <div className="card__cover-empty">No cover</div>
                 )}
                 <div className="badges">
+                  {price && <span className="badge badge--price">💰 {price}</span>}
                   {game.hasDemo && <span className="badge badge--demo">Demo</span>}
                   {players && <span className="badge badge--players">👥 {players}</span>}
                   {coop && <span className="badge badge--coop">🤝 Co-op</span>}
@@ -230,12 +232,14 @@ function GameReviewBlock({ game, meId, onSaved }: { game: Game; meId: string | n
   const [draft, setDraft] = useState(game.myReview ?? "");
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     setDraft(game.myReview ?? "");
   }, [game.myReview]);
 
-  const others = game.reviews.filter((r) => r.userId !== meId);
+  const reviews = game.reviews;
+  const shown = showAll ? reviews : reviews.slice(0, 1);
 
   const save = async () => {
     setSaving(true);
@@ -250,10 +254,10 @@ function GameReviewBlock({ game, meId, onSaved }: { game: Game; meId: string | n
 
   return (
     <div className="reviews">
-      {others.map((r) => (
-        <div className="review" key={r.userId}>
+      {shown.map((r) => (
+        <div className={`review${r.userId === meId ? " review--own" : ""}`} key={r.userId}>
           <div className="review__head">
-            <span className="review__author">{r.authorName}</span>
+            <span className="review__author">{r.authorName}{r.userId === meId ? " (you)" : ""}</span>
             {r.rating && <span className="review__rating">★ {r.rating}</span>}
             <span className="review__played">{r.played ? "played" : "not played"}</span>
           </div>
@@ -261,15 +265,22 @@ function GameReviewBlock({ game, meId, onSaved }: { game: Game; meId: string | n
         </div>
       ))}
 
+      {reviews.length > 1 && (
+        <button className="btn btn--ghost btn--sm" onClick={() => setShowAll((v) => !v)}>
+          {showAll ? "Hide reviews" : `Show all reviews (${reviews.length})`}
+        </button>
+      )}
+
       {editing ? (
         <div className="review review--own">
           <textarea
             className="review__input"
             placeholder="Your review…"
             value={draft}
-            maxLength={1000}
+            maxLength={REVIEW_MAX_LENGTH}
             onChange={(e) => setDraft(e.target.value)}
           />
+          <div className="review__count">{draft.length}/{REVIEW_MAX_LENGTH}</div>
           <div className="actions">
             <button className="btn btn--primary" onClick={save} disabled={saving}>
               {saving ? "Saving…" : "Save review"}
@@ -279,19 +290,9 @@ function GameReviewBlock({ game, meId, onSaved }: { game: Game; meId: string | n
             </button>
           </div>
         </div>
-      ) : game.myReview ? (
-        <div className="review review--own">
-          <div className="review__head">
-            <span className="review__author">You</span>
-          </div>
-          <div className="review__text">{game.myReview}</div>
-          <button className="btn btn--ghost btn--sm" onClick={() => setEditing(true)}>
-            Edit review
-          </button>
-        </div>
       ) : (
         <button className="btn btn--ghost btn--sm" onClick={() => setEditing(true)}>
-          ✍ Write a review
+          {game.myReview ? "Edit your review" : "✍ Write a review"}
         </button>
       )}
     </div>

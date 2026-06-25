@@ -34,8 +34,6 @@ export function WatchPage() {
     }
   };
 
-  // Tear the player down on unmount so leaving and returning to the room starts a
-  // fresh iframe instead of reviving a stale, frozen one.
   useEffect(() => {
     return () => {
       clearPauseTimer();
@@ -105,9 +103,6 @@ export function WatchPage() {
     if (!s) return 0;
     const raw = s.paused ? s.positionSeconds : s.positionSeconds + (Date.now() - syncedAtRef.current) / 1000;
     let pos = Math.max(0, raw);
-    // If the room's clock ran past the end (e.g. it was left playing with nobody
-    // watching), clamp to the video length so we show the last frame, not a black
-    // void with a stuck subtitle.
     const duration = playerRef.current?.getDuration?.() ?? 0;
     if (duration > 0 && pos > duration) pos = duration;
     return pos;
@@ -122,8 +117,6 @@ export function WatchPage() {
     if (s.paused) {
       player.pauseVideo();
     } else {
-      // Browsers block unmuted autoplay; start muted (allowed) so everyone is in
-      // sync, and surface a one-tap prompt to enable sound.
       if (soundEnabledRef.current) {
         player.unMute();
       } else {
@@ -175,9 +168,6 @@ export function WatchPage() {
       YT: { PlayerState: { PLAYING: number; PAUSED: number; ENDED: number; BUFFERING: number } };
     }).YT;
 
-    // Buffering is transient and must never be broadcast as a pause: a slow
-    // client stalling would otherwise pause the video for everyone. Cancel any
-    // pending pause when buffering starts.
     if (event.data === YT.PlayerState.BUFFERING) {
       clearPauseTimer();
       return;
@@ -192,8 +182,6 @@ export function WatchPage() {
       socketRef.current?.emit("playback:play", pos);
     }
     if (event.data === YT.PlayerState.PAUSED) {
-      // Debounce: a genuine pause stays paused, but a buffering blip flips back to
-      // PLAYING/BUFFERING within a moment and cancels this before it broadcasts.
       clearPauseTimer();
       pauseTimerRef.current = window.setTimeout(() => {
         pauseTimerRef.current = null;

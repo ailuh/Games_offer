@@ -46,6 +46,8 @@ model Game {
   coopSplitscreen Boolean   @default(false)
   playersMin     Int?
   playersMax     Int?
+  priceRub       Int?
+  priceIsFree    Boolean    @default(false)
   status         GameStatus @default(BACKLOG)
   sourcePostId   String?
   suggestedById  BigInt?

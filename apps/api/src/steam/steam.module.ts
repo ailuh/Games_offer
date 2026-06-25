@@ -14,6 +14,8 @@ export interface SteamDetails {
   coopSplitscreen: boolean;
   multiplayer: boolean;
   aboutText: string | null;
+  priceRub: number | null;
+  priceIsFree: boolean;
 }
 
 /**
@@ -76,13 +78,15 @@ export class SteamService {
   }
 
   async getDetails(appId: number): Promise<SteamDetails | null> {
-    const url = `https://store.steampowered.com/api/appdetails?appids=${appId}&cc=us&l=en`;
+    const url = `https://store.steampowered.com/api/appdetails?appids=${appId}&cc=ru&l=en`;
     const data = await this.fetchJson<Record<string, { success: boolean; data?: AppDetailsData }>>(url);
     const entry = data?.[String(appId)];
     if (!entry?.success || !entry.data) return null;
 
     const coop = parseCoopCategories(entry.data.categories);
     const aboutText = buildAboutText(entry.data.short_description, entry.data.about_the_game);
+    const priceFinal = entry.data.price_overview?.final;
+    const priceRub = typeof priceFinal === "number" ? Math.round(priceFinal / 100) : null;
     return {
       appId,
       name: entry.data.name ?? null,
@@ -99,6 +103,8 @@ export class SteamService {
         : [],
       ...coop,
       aboutText,
+      priceRub,
+      priceIsFree: entry.data.is_free ?? false,
     };
   }
 
@@ -120,6 +126,8 @@ export class SteamService {
 interface AppDetailsData {
   name?: string;
   header_image?: string;
+  is_free?: boolean;
+  price_overview?: { final?: number; currency?: string };
   short_description?: string;
   about_the_game?: string;
   screenshots?: Array<{ path_full?: string }>;
