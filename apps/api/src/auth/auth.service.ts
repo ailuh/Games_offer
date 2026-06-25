@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
+import { ForbiddenException, Injectable, Logger, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma/prisma.service";
 import type { Env } from "../config/env.validation";
@@ -25,12 +25,26 @@ export class AuthService {
       throw new ServiceUnavailableException("Telegram bot token is not configured");
     }
 
-    if (!verifyTelegramLogin(dto, botToken)) {
+    const verified = verifyTelegramLogin(dto, botToken);
+    const allowed = this.config.get("ALLOWED_TELEGRAM_IDS_PARSED", { infer: true });
+    const isAllowed = allowed.some((id) => id === BigInt(dto.id));
+    const dtoRecord = dto as unknown as Record<string, unknown>;
+    const fields = Object.keys(dto)
+      .filter((k) => dtoRecord[k] !== undefined && k !== "hash")
+      .sort()
+      .join(",");
+    Logger.log(
+      `tg-login id=${dto.id} fields=[${fields}] verified=${verified} allowed=${isAllowed} age=${
+        Math.floor(Date.now() / 1000) - Number(dto.auth_date)
+      }s`,
+      "AuthLoginDebug",
+    );
+
+    if (!verified) {
       throw new UnauthorizedException("Invalid Telegram login signature");
     }
 
-    const allowed = this.config.get("ALLOWED_TELEGRAM_IDS_PARSED", { infer: true });
-    if (!allowed.some((id) => id === BigInt(dto.id))) {
+    if (!isAllowed) {
       throw new ForbiddenException("This account is not allowed");
     }
 
